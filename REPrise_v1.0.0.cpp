@@ -1,3 +1,9 @@
+/*
+REPrise_v1.0.0.cpp
+Author: Atsushi Takeda, Daisuke Nonaka
+*/
+
+
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -15,8 +21,8 @@
 using namespace std;
 
 #include "cmd_line_opts.h"
-#include "sais_long.h"//20210405変更
-#include "REPrise_v006.hpp"//20210405変更
+#include "sais_long.h"
+#include "REPrise_v1.0.0.hpp"
 
 #define IUPAC(c) c == 'R' || c == 'r' || c == 'Y' || c == 'y' || c == 'M' || c == 'm' || c == 'K' || c == 'k' || c == 'W' || c == 'w' || c == 'S' || c == 's' || c == 'B' || c == 'b' || c == 'D' || c == 'd' || c == 'H' || c == 'h' || c == 'V' || c == 'v'
 
@@ -36,7 +42,6 @@ int MINIMPROVEMENT;
 double MAXENTROPY = -0.7;
 int PADLENGTH = 11000; /* should be >= L+OFFSETWIDTH */
 int MAXEXTEND;         /* How far to extend. max total length of consensus is 2*MAXEXTEND+l  (MAXEXTEND >>> l) */
-//int MAXSEEDFREQ;
 int MAXREPEAT;
 int OFFSETWIDTH;  /* max offset (5) */
 int WHEN_TO_STOP; /* stop if no improvement after extending this far (500) */
@@ -46,12 +51,11 @@ int MATCHSCORE;
 int MISMATCHSCORE;
 int GAPSCORE;
 int GAPEXTENDSCORE;
-int KMERGAPSCORE;
 
 int MINSCORE = -100000;
 
-int MA; /*20211105, REalignment*/
-int VERBOSE;/*20211221, VERBOSE*/
+int VERBOSE;
+int HELP;
 
 char* consensus;
 //seq_type* pos;
@@ -59,12 +63,12 @@ char* consensus;
 vector<seq_type> pos;
 vector<bool> rev;
 
-seq_type length; //20210415変更
+seq_type length;
 int k;
 char* sequence;
-seq_type* SA;//20210415変更
+seq_type* SA;
 
-vector<pair<string, seq_type> > chrtable; //20211206変更, gff出力の際にchrを指定する
+vector<pair<string, seq_type> > chrtable;
 
 int PARALLELNUM;
 
@@ -91,11 +95,9 @@ int main(int argc, char* argv[]) {
     co_get_int(argc, argv, "-gap", &GAPSCORE) || (GAPSCORE = -5);
     co_get_int(argc, argv, "-gapex", &GAPEXTENDSCORE) || (GAPEXTENDSCORE = -1);
     co_get_int(argc, argv, "-cappenalty", &CAPPENALTY) || (CAPPENALTY = -20);
-    co_get_int(argc, argv, "-egap", &KMERGAPSCORE) || (KMERGAPSCORE = -1);
     co_get_int(argc, argv, "-dist", &KMERDIST) || (KMERDIST = 0);
 
     co_get_int(argc, argv, "-maxextend", &MAXEXTEND) || (MAXEXTEND = 10000);
-    //co_get_int(argc, argv, "-maxseedfreq", &MAXSEEDFREQ) || (MAXSEEDFREQ = 100000);
     co_get_int(argc, argv, "-maxrepeat", &MAXREPEAT) || (MAXREPEAT = 100000);
     co_get_int(argc, argv, "-maxgap", &OFFSETWIDTH) || (OFFSETWIDTH = 5);
     co_get_int(argc, argv, "-stopafter", &WHEN_TO_STOP) || (WHEN_TO_STOP = 100);
@@ -106,8 +108,13 @@ int main(int argc, char* argv[]) {
 
     co_get_int(argc, argv, "-pa", &PARALLELNUM) || (PARALLELNUM = 1);
 
-    co_get_bool(argc, argv, "-maskingalign", &MA) || (MA = 0);
     co_get_bool(argc, argv, "-verbose", &VERBOSE) || (VERBOSE = 0);
+    co_get_bool(argc, argv, "-h", &HELP) || (HELP = 0);
+
+    if(HELP==1){
+        print_usage();
+        exit(1);
+    }
 
     co_get_string(argc, argv, "-input", &input);
     co_get_string(argc, argv, "-output", &output);
@@ -395,120 +402,65 @@ void build_repeat_families(priority_queue<pair<int, vector<char>>>& kmers, const
         }
 
 
-         if(MA == true){ //20211105_takeda_edit, paiwwise REalignment between consensus-repeat and canditates 
-            pair<seq_type, seq_type> repeat_element;//アラインメントの結果を管理する, 並列化の時はループの内側で宣言する必要があるかも...?
-            if(consensusend - consensusstart + 1 >= MINLENGTH){
-                /*mask_flag, mask_flag2の両方を更新, consensusの出力もする*/
-                /*並列化について検討*/
-                
-                if(VERBOSE == true){
-                    cout << "-------------------------------------------------------------------------------"<< endl;
-                    cout << ">R=" << repeat_num << " seedfreq=" << seedfreq << ", length=" << consensusend - consensusstart + 1 << ", Seed=";
-                    for (int i = 0; i < k; i++)
-                        cout << num_to_char(currentseed.second[i]);
-                    cout << endl;
-                    seq_type x;
-                    for (x = consensusstart; x <= consensusend; x++) {
-                        cout << num_to_char(consensus[x]);
-                        if ((x - consensusstart) % 80 == 79)
-                            cout << endl;
-                        }
-                    if ((x - consensusstart) % 80 > 0)
-                        cout << endl;
-                    cout << "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"<< endl;
-                }
-                
-                
-                for(int i = 0; i < seedfreq; i++){
-                    repeat_element = masking_align(i, consensusstart, consensusend);
-                    //cout << repeat_element.first << "," << repeat_element.second << endl;
-                    maskbyrepeat_element(i, repeat_element.first, repeat_element.second, mask_flag);
-                    if(llabs(repeat_element.second - repeat_element.first + 1) < MINLENGTH){//20220212  ,+ 1するように修正
-                        continue;
-                    }else{
-                        cout << "!element" << element_count << endl;
-                        maskbyrepeat_element(i, repeat_element.first, repeat_element.second, mask_flag2);
-                        chr_start = chrtracer(pos[i]);
-                        if(!rev[i]){
-                            fout3 << chr_start.first << "\t" << pos[i] + repeat_element.first - chr_start.second  << "\t" << pos[i] + repeat_element.second - chr_start.second  << "\t" <<  "R=" << repeat_num  << "\t" << repeat_element.second - repeat_element.first + 1 <<  "\t+" <<  endl; 
-                        }else{
-                            fout3 << chr_start.first << "\t" << pos[i] + repeat_element.first - chr_start.second  << "\t" << pos[i] + repeat_element.second - chr_start.second  << "\t" <<  "R=" << repeat_num  << "\t" << repeat_element.second - repeat_element.first + 1 <<  "\t-" <<  endl; 
-                        }
-                        if(VERBOSE = true){
-                                seq_type x;
-                        for (x = repeat_element.first; x <= repeat_element.second; x++) {
-                            cout << num_to_char(sequence[pos[i] + x]);
-                            if ((x - repeat_element.first) % 80 == 79)
-                                cout << endl;
-                            }
-                        if ((x - repeat_element.first) % 80 > 0)
-                            cout << endl;
-                        }
-                        
-                        
-                        element_count ++;
-                    }
-                }
-                if(VERBOSE){
-                            cout << "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"<< endl;
-                            cout << "   R=" << repeat_num << "elementfreq=" << element_count << endl;
-                        }
-                fout1 << ">R=" << repeat_num << ", seedfreq=" << seedfreq << ", elementfreq="  << element_count << ", length=" << consensusend - consensusstart + 1 << ", Seed=";
+        //20211105_takeda_edit, paiwwise REalignment between consensus-repeat and canditates 
+        pair<seq_type, seq_type> repeat_element;//アラインメントの結果を管理する, 並列化の時はループの内側で宣言する必要があるかも...?
+        if(consensusend - consensusstart + 1 >= MINLENGTH){
+            /*mask_flag, mask_flag2の両方を更新, consensusの出力もする*/
+            /*並列化について検討*/
+            
+            if(VERBOSE == true){
+                cout << "-------------------------------------------------------------------------------"<< endl;
+                cout << ">R=" << repeat_num << " seedfreq=" << seedfreq << ", length=" << consensusend - consensusstart + 1 << ", Seed=";
                 for (int i = 0; i < k; i++)
-                    fout1 << num_to_char(currentseed.second[i]);
-                fout1 << endl;
+                    cout << num_to_char(currentseed.second[i]);
+                cout << endl;
                 seq_type x;
                 for (x = consensusstart; x <= consensusend; x++) {
-                    fout1 << num_to_char(consensus[x]);
+                    cout << num_to_char(consensus[x]);
                     if ((x - consensusstart) % 80 == 79)
-                        fout1 << endl;
+                        cout << endl;
                     }
                 if ((x - consensusstart) % 80 > 0)
-                    fout1 << endl;
-                repeat_num++;
-            }else{
-                /*mask_flagのみを更新*/
-                /*並列化について検討*/
-                for(int i = 0; i < seedfreq; i++){
-                    repeat_element = masking_align(i, consensusstart, consensusend);
-                    maskbyrepeat_element(i, repeat_element.first, repeat_element.second, mask_flag);
-                }
-            }      
-        }else{ // fast, but masked by result of extension
-            maskbyrepeat(seedfreq, repeatstart, repeatend, mask_flag);
-            if (consensusend - consensusstart + 1 >= MINLENGTH) {
-                maskbyrepeat(seedfreq, repeatstart, repeatend, mask_flag2);
-                //20211205_takeda_edit
-                for (int i = 0; i < seedfreq; i++){
+                    cout << endl;
+                cout << "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"<< endl;
+            }
+            
+            
+            for(int i = 0; i < seedfreq; i++){
+                repeat_element = masking_align(i, consensusstart, consensusend);
+                //cout << repeat_element.first << "," << repeat_element.second << endl;
+                maskbyrepeat_element(i, repeat_element.first, repeat_element.second, mask_flag);
+                if(llabs(repeat_element.second - repeat_element.first + 1) < MINLENGTH){//20220212  ,+ 1するように修正
+                    continue;
+                }else{
+                    cout << "!element" << element_count << endl;
+                    maskbyrepeat_element(i, repeat_element.first, repeat_element.second, mask_flag2);
                     chr_start = chrtracer(pos[i]);
                     if(!rev[i]){
-                        fout3 << chr_start.first << "\t" << pos[i] + repeatstart[i] - chr_start.second  << "\t" << pos[i] + repeatend[i] - chr_start.second << "\t" <<  "R=" << repeat_num  << "\t" << repeatend[i] - repeatstart[i] + 1 <<  "\t+" <<  endl; 
+                        fout3 << chr_start.first << "\t" << pos[i] + repeat_element.first - chr_start.second  << "\t" << pos[i] + repeat_element.second - chr_start.second  << "\t" <<  "R=" << repeat_num  << "\t" << repeat_element.second - repeat_element.first + 1 <<  "\t+" <<  endl; 
+                    }else{
+                        fout3 << chr_start.first << "\t" << pos[i] + repeat_element.first - chr_start.second  << "\t" << pos[i] + repeat_element.second - chr_start.second  << "\t" <<  "R=" << repeat_num  << "\t" << repeat_element.second - repeat_element.first + 1 <<  "\t-" <<  endl; 
                     }
-                    else{
-                        fout3 << chr_start.first << "\t" << pos[i] - repeatend[i] + k - 1 - chr_start.second  << "\t" <<  pos[i] - repeatstart[i] + k - chr_start.second - 1 << "\t" <<  "R=" << repeat_num  << "\t" << repeatend[i] - repeatstart[i] + 1 <<  "\t-" <<  endl; 
-                        //fout3 << chr_start.first << "\tREPrise_fast\tR=" << repeat_num  << "\t" << pos[i] - repeatend[i] + k - chr_start.second << "\t" << pos[i] - repeatstart[i] + k - chr_start.second<< "\t.\t-\t." << endl;//本来は k - 1 -　chr_start.second + 1, 最後の+1はgff出力による1からstartの影響
+                    if(VERBOSE = true){
+                            seq_type x;
+                    for (x = repeat_element.first; x <= repeat_element.second; x++) {
+                        cout << num_to_char(sequence[pos[i] + x]);
+                        if ((x - repeat_element.first) % 80 == 79)
+                            cout << endl;
+                        }
+                    if ((x - repeat_element.first) % 80 > 0)
+                        cout << endl;
                     }
+                    
+                    
+                    element_count ++;
                 }
-                fout1 << ">R=" << repeat_num << ", freq=" << seedfreq << ", length=" << consensusend - consensusstart + 1 << ", Seed=";
-                for (int i = 0; i < k; i++)
-                    fout1 << num_to_char(currentseed.second[i]);
-                fout1 << endl;
-                seq_type x;
-                for (x = consensusstart; x <= consensusend; x++) {
-                    fout1 << num_to_char(consensus[x]);
-                    if ((x - consensusstart) % 80 == 79)
-                        fout1 << endl;
-                }
-                if ((x - consensusstart) % 80 > 0)
-                    fout1 << endl;
-                repeat_num++;
             }
-        }
-        /*maskbyrepeat(seedfreq, repeatstart, repeatend, mask_flag);
-
-        if (consensusend - consensusstart + 1 >= MINLENGTH) {
-            maskbyrepeat(seedfreq, repeatstart, repeatend, mask_flag2);
-            fout1 << ">R=" << repeat_num << " freq=" << seedfreq << ", length=" << consensusend - consensusstart + 1 << ", Seed=";
+            if(VERBOSE){
+                        cout << "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"<< endl;
+                        cout << "   R=" << repeat_num << "elementfreq=" << element_count << endl;
+                    }
+            fout1 << ">R=" << repeat_num << ", seedfreq=" << seedfreq << ", elementfreq="  << element_count << ", length=" << consensusend - consensusstart + 1 << ", Seed=";
             for (int i = 0; i < k; i++)
                 fout1 << num_to_char(currentseed.second[i]);
             fout1 << endl;
@@ -517,11 +469,19 @@ void build_repeat_families(priority_queue<pair<int, vector<char>>>& kmers, const
                 fout1 << num_to_char(consensus[x]);
                 if ((x - consensusstart) % 80 == 79)
                     fout1 << endl;
-            }
+                }
             if ((x - consensusstart) % 80 > 0)
                 fout1 << endl;
             repeat_num++;
-        }*/
+        }else{
+            /*mask_flagのみを更新*/
+            /*並列化について検討*/
+            for(int i = 0; i < seedfreq; i++){
+                repeat_element = masking_align(i, consensusstart, consensusend);
+                maskbyrepeat_element(i, repeat_element.first, repeat_element.second, mask_flag);
+            }
+        }      
+        
     }
     seq_type x = 0;
     for (seq_type i = PADLENGTH; i < length - PADLENGTH; i++) {
@@ -614,15 +574,6 @@ void maskbyrepeat(int seedfreq, const vector<seq_type>& repeatstart, const vecto
 void maskbyrepeat_element(int i, seq_type elementstart, seq_type elementend, vector<bool>& mask_flag){/*20211105_takeda_edit*/
     for (seq_type j = pos[i] + elementstart; j <= pos[i] + elementend; j++)
                 mask_flag[j] = true;
-    /*
-    if (!rev[i]) {
-            for (seq_type j = pos[i] + elementstart; j <= pos[i] + elementend; j++)
-                mask_flag[j] = true;
-        } else {
-            for (seq_type j = pos[i] - elementend; j <= pos[i] - elementstart; j++)
-                mask_flag[j] = true;
-        }
-    */
 }
 
 vector<seq_type> findkmer(const vector<char>& query, const vector<vector<tuple<seq_type, seq_type, char, char>>>& cachetable) {
@@ -684,12 +635,8 @@ void SA_search(const vector<char>& query, seq_type begin, seq_type end, char que
                 }
             }
         }
-        /*if (query_num > 0 && query_num < (k - 1))
-      SA_search(query, begin, end, query_num + 1, seq_num, rem_dist + KMERGAPSCORE, matched);*/
         for (int i = 0; i < 4; i++) {
             if ((b[i + 1] - b[i]) > 0) {
-                /*if (seq_num > 0)
-          SA_search(query, b[i], b[i + 1], query_num, seq_num + 1, rem_dist + KMERGAPSCORE, matched);*/
                 SA_search(query, b[i], b[i + 1], query_num + 1, seq_num + 1, rem_dist - (query[query_num] != i), matched);
             }
         }
@@ -731,18 +678,6 @@ pair<int, vector<char>> find_bestseed(priority_queue<pair<int, vector<char>>>& k
             kmers.push(make_pair(newfreq, tmpbest.second));
     }
     
-    /*seq_type i = 0;
-    for (const auto& e : occs) {
-        pos[i] = e;
-        rev[i] = false;
-        i++;
-    }
-    for (const auto& e : rcoccs) {
-        pos[i] = e;
-        rev[i] = true;
-        i++;
-    }*/
-    //20210814 vectorに書き換え
     pos.clear();
     pos.reserve(newfreq);
     copy(occs.begin(), occs.end(), back_inserter(pos));
@@ -890,7 +825,6 @@ int compute_score(bool isright, int ext, int se, char base, const vector<vector<
     return tmpscore;
 }
 
-//多分openMPで並列化できるので要チェック
 pair<seq_type, seq_type> masking_align(int i,seq_type consensusstart, seq_type consensusend){
     vector<int> right_mask_score(2 * OFFSETWIDTH + 1, MINSCORE);
     vector<int> left_mask_score(2 * OFFSETWIDTH + 1, MINSCORE);
@@ -912,7 +846,7 @@ pair<seq_type, seq_type> masking_align(int i,seq_type consensusstart, seq_type c
 
     int elementstart, elementend;
 
-    /*右伸長*/
+    /*right extend*/
     right_mask_score_m[OFFSETWIDTH] = 0;
     for (int offset = OFFSETWIDTH; offset > 0; offset--)
         right_mask_score_del[offset + OFFSETWIDTH] = GAPSCORE + GAPEXTENDSCORE * (offset - 1);
@@ -927,7 +861,7 @@ pair<seq_type, seq_type> masking_align(int i,seq_type consensusstart, seq_type c
 
         if(right_ext -right_best_ext >= WHEN_TO_STOP) break;
     }
-    /*左伸長*/
+    /*left extend*/
     left_mask_score_m[OFFSETWIDTH] = 0;
     for (int offset = OFFSETWIDTH; offset > 0; offset--)
         left_mask_score_del[offset + OFFSETWIDTH] = GAPSCORE + GAPEXTENDSCORE * (offset - 1);
@@ -942,7 +876,7 @@ pair<seq_type, seq_type> masking_align(int i,seq_type consensusstart, seq_type c
         //if(VERBOSE) cout << left_tmp_score <<endl;
         if(left_best_ext - left_ext >= WHEN_TO_STOP) break;
     }
-    /*extされた区間を導出*/
+    /*curation of extension result*/
     int best_rightoffset = -OFFSETWIDTH;
     int best_leftoffset = -OFFSETWIDTH;
 
@@ -1059,7 +993,7 @@ void build_sequence() {
     MAXLENGTH = fin.tellg();
     fin.seekg(0, ios_base::beg);
 
-    //必要なpadding数を記録
+
     while (getline(fin,str)){
         if (str[0] == '>') NUMCHR ++;
     }
@@ -1075,7 +1009,7 @@ void build_sequence() {
     }
 
     length = 0;
-    chrtable.push_back(make_pair("unknown",0));//chrtableの最初の値, fasta形式ではない場合chrtableはunknownのみとなる
+    chrtable.push_back(make_pair("unknown",0));
 
     for (int i = 0; i < PADLENGTH; i++) {
         sequence[length] = 99;
@@ -1089,7 +1023,6 @@ void build_sequence() {
         if (c == '\n')
             continue;
         if (c == '>') {
-            //paddingを入れる 2022/02/07
             chrtable.push_back(make_pair("padding",length));
             for (int i = 0; i < PADLENGTH; i++) {
                 sequence[length] = 99;
@@ -1128,10 +1061,9 @@ void build_sequence() {
     fin.close();
 }
 
-/*20211206_ takeda_edit, blnary searchにすればちょっとだけ早くなると思うよ*/
 pair<string, seq_type> chrtracer(const seq_type stringpos){
     pair<string, seq_type> output = chrtable[int(chrtable.size()-1)];
-    for(int i = 0; i < chrtable.size() ; i++){//0番目にはPADLENGTHを入れる
+    for(int i = 0; i < chrtable.size() ; i++){
         if(stringpos < chrtable[i].second){
             output = chrtable[i-1];
             break;
@@ -1147,19 +1079,6 @@ void allocate_space() {
         cerr << "Could not allocate space for consensus array" << endl;
         exit(1);
     }
-    
-    /*
-    rev = (bool*)malloc(MAXSEEDFREQ * sizeof(bool));
-    if (NULL == rev) {
-        cerr << "Could not allocated space for the reversed array" << endl;
-        exit(1);
-    }
-
-    pos = (seq_type*)malloc(MAXSEEDFREQ * sizeof(seq_type));
-    if (NULL == pos) {
-        cerr << "Could not allocated space for the position array" << endl;
-        exit(1);
-    }*/
 }
 
 void freespace() {
@@ -1281,4 +1200,42 @@ void display_time(string msg) {
     struct rusage r;
     getrusage(RUSAGE_SELF, &r);
     cout << " maxrss=" << r.ru_maxrss << "KB" << endl;
+}
+
+
+void print_usage(){
+    cout << "REPrise: de novo interspersed repeat detection software. version 1.0" << endl;
+    cout << endl;
+    cout << "Usage" << endl;
+    cout << endl;
+    cout << "REPrise [-input genome file] [-output outputname] [Options]" << endl;
+    cout << endl;
+    cout << "Options\n";
+    cout << "(Required)\n";
+    cout << "   -input  STR         input file name. You can input assembled genome file, or hard masked genome file\n";
+    cout << "   -output STR         output file name. REPrise outputs STR.freq, STR.bed STR.masked and STR.reprof (consensus seqnences)\n" ;
+    cout << endl;
+    cout << "(Optional)\n";
+    cout << "   -h                  Print help and exit\n";
+    cout << "   -v                  Verbose\n";
+    cout << endl;
+    cout << "   -match INT          Match score of the extension alignment (default = 1)\n";
+    cout << "   -match INT          Mismatch score of the extension alignment (default = -1)\n";
+    cout << "   -gap   INT          Gap open score of the extension alignment (default = -5)\n";
+    cout << "   -gapex  INT         Gap extension score of the extension alignment (default = -1)\n";
+    cout << "   -capplenalty INT    Penalty of the imcomplete length alignment (default = -20)\n";
+    cout << "   -dist INT           Number of mismatches allowed in inexact seed (default = 0)\n";
+    cout << endl;
+    cout << "   -maxextend INT      Uppler limit length of extension in one side direction of consensus repeat (default = 10000)\n";
+    cout << "   -maxrepeat INT      Maximum Number of elements belonging to one repeat family (default = 100000)\n";
+    cout << "   -maxgap INT         Band size(= maximum number of gaps allowed) of extension alignment (default = 5)\n";
+    cout << "   -stopafter INT      If the maximum score of extension alignment does not change INT consecutive times, that alignment will stop (default = 100)\n";
+    cout << "   -minlength INT      Minimum number of length of the consensus sequence of repeat family(default = 50)\n";
+    cout << "   -minfreq INT        Minimum number of elements  belonging to one repeat family (default = 3)\n";
+    cout << "   -minimprovement INT Penalty associated with the number of regions to be extended as the repeat regions (default = 3)\n";
+    cout << "   -tandemdist INT     Interval to match the same seed to avoid seed matching with tandem repeats(default = 500)\n";
+    cout << endl;
+    cout << "   -pa INT             Number of openMP parallel cores";
+
+    cout << endl;
 }

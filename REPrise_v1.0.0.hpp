@@ -35,4 +35,5 @@ double compute_entropy(const vector<char> &kmer);
 int default_k(seq_type len,int KMERDIST);
 
 void display_time(string msg);
+void print_usage();
 #endif
