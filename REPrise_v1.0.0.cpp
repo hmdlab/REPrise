@@ -56,6 +56,7 @@ int MINSCORE = -100000;
 
 int VERBOSE;
 int HELP;
+int DEBUG;
 
 char* consensus;
 //seq_type* pos;
@@ -109,6 +110,7 @@ int main(int argc, char* argv[]) {
     co_get_int(argc, argv, "-pa", &PARALLELNUM) || (PARALLELNUM = 1);
 
     co_get_bool(argc, argv, "-verbose", &VERBOSE) || (VERBOSE = 0);
+    co_get_bool(argc, argv, "-debug", &DEBUG) || (DEBUG = 0);
     co_get_bool(argc, argv, "-h", &HELP) || (HELP = 0);
 
     if(HELP==1){
@@ -348,16 +350,20 @@ void build_repeat_families(priority_queue<pair<int, vector<char>>>& kmers, const
         cerr << "Could not open " << REPROF_FILE << endl;
         exit(1);
     }
-    fout2.open(MASKED_FILE, ios::out);
-    if (!fout2) {
-        cerr << "Could not open " << MASKED_FILE << endl;
-        exit(1);
+
+    if(DEBUG){
+        fout2.open(MASKED_FILE, ios::out);
+        if (!fout2) {
+            cerr << "Could not open " << MASKED_FILE << endl;
+            exit(1);
+        }
+        fout3.open(BED_FILE, ios::out);
+        if (!fout3) {
+            cerr << "Could not open " << BED_FILE << endl;
+            exit(1);
+        }
     }
-    fout3.open(BED_FILE, ios::out);
-    if (!fout3) {
-        cerr << "Could not open " << BED_FILE << endl;
-        exit(1);
-    }
+    
 
 
     vector<bool> mask_flag(length, false);
@@ -436,20 +442,22 @@ void build_repeat_families(priority_queue<pair<int, vector<char>>>& kmers, const
                     cout << "!element" << element_count << endl;
                     maskbyrepeat_element(i, repeat_element.first, repeat_element.second, mask_flag2);
                     chr_start = chrtracer(pos[i]);
-                    if(!rev[i]){
-                        fout3 << chr_start.first << "\t" << pos[i] + repeat_element.first - chr_start.second  << "\t" << pos[i] + repeat_element.second - chr_start.second  << "\t" <<  "R=" << repeat_num  << "\t" << repeat_element.second - repeat_element.first + 1 <<  "\t+" <<  endl; 
-                    }else{
-                        fout3 << chr_start.first << "\t" << pos[i] + repeat_element.first - chr_start.second  << "\t" << pos[i] + repeat_element.second - chr_start.second  << "\t" <<  "R=" << repeat_num  << "\t" << repeat_element.second - repeat_element.first + 1 <<  "\t-" <<  endl; 
-                    }
-                    if(VERBOSE = true){
-                            seq_type x;
-                    for (x = repeat_element.first; x <= repeat_element.second; x++) {
-                        cout << num_to_char(sequence[pos[i] + x]);
-                        if ((x - repeat_element.first) % 80 == 79)
-                            cout << endl;
+                    if(DEBUG){
+                        if(!rev[i]){
+                            fout3 << chr_start.first << "\t" << pos[i] + repeat_element.first - chr_start.second  << "\t" << pos[i] + repeat_element.second - chr_start.second  << "\t" <<  "R=" << repeat_num  << "\t" << repeat_element.second - repeat_element.first + 1 <<  "\t+" <<  endl; 
+                        }else{
+                            fout3 << chr_start.first << "\t" << pos[i] + repeat_element.first - chr_start.second  << "\t" << pos[i] + repeat_element.second - chr_start.second  << "\t" <<  "R=" << repeat_num  << "\t" << repeat_element.second - repeat_element.first + 1 <<  "\t-" <<  endl; 
                         }
-                    if ((x - repeat_element.first) % 80 > 0)
-                        cout << endl;
+                    }
+                    if(VERBOSE){
+                        seq_type x;
+                        for (x = repeat_element.first; x <= repeat_element.second; x++) {
+                            cout << num_to_char(sequence[pos[i] + x]);
+                            if ((x - repeat_element.first) % 80 == 79)
+                                cout << endl;
+                            }
+                        if ((x - repeat_element.first) % 80 > 0)
+                            cout << endl;
                     }
                     
                     
@@ -484,18 +492,23 @@ void build_repeat_families(priority_queue<pair<int, vector<char>>>& kmers, const
         
     }
     seq_type x = 0;
-    for (seq_type i = PADLENGTH; i < length - PADLENGTH; i++) {
-        if (mask_flag2[i] == false)
-            fout2 << num_to_char(sequence[i]);
-        else
-            fout2 << "X";
-        x++;
-        if (x % 50 == 0)
-            fout2 << endl;
+    if(DEBUG){
+        for (seq_type i = PADLENGTH; i < length - PADLENGTH; i++) {
+            if (mask_flag2[i] == false)
+                fout2 << num_to_char(sequence[i]);
+            else
+                fout2 << "X";
+            x++;
+            if (x % 50 == 0)
+                fout2 << endl;
+        }
     }
     freespace();
     fout1.close();
-    fout2.close();
+    if(DEBUG){
+        fout2.close();
+        fout3.close();
+    }
     display_time("allrepeats");
 }
 
@@ -1159,13 +1172,13 @@ double compute_entropy(const vector<char>& kmer) {
 /*
  * Set k = ceil( 1 + log(\sum(g.segments[*].length)/log(4) );
  */
-int default_k(seq_type len, int KMERDIST) { //20210405変更
-    vector<vector<long long int> > v(40,vector<long long int>(40));//パスカルの三角形
+int default_k(seq_type len, int KMERDIST) { 
+    vector<vector<long long int> > v(40,vector<long long int>(40));
     for(int i = 0;i <v.size(); i++){
         v[i][0]=1;
         v[i][i]=1;
     }
-    for(int kk = 1;kk <v.size();kk++){ //kを使っていたのでkkにしただけ. 
+    for(int kk = 1;kk <v.size();kk++){ 
         for(int j = 1;j<kk;j++){
             v[kk][j]=(v[kk-1][j-1]+v[kk-1][j]);
         }
@@ -1218,6 +1231,7 @@ void print_usage(){
     cout << "(Optional)\n";
     cout << "   -h                  Print help and exit\n";
     cout << "   -v                  Verbose\n";
+    cout << "   -debug              output masked file and bed file for debug\n";
     cout << endl;
     cout << "   -match INT          Match score of the extension alignment (default = 1)\n";
     cout << "   -match INT          Mismatch score of the extension alignment (default = -1)\n";
