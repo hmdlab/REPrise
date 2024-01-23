@@ -43,7 +43,6 @@ Options
    -pa INT             Number of openMP parallel cores
 ```
 `-dist` is a useful parameter for improving sensitivity, but it may increase the computation time significantly. Be careful when setting `-dist` to 2 or more!
-
 REPrise supports parallel computation with openMP, and we recommend using it if available.
 
 # Usage
@@ -58,6 +57,7 @@ cd-hit-est -i out.reprof -o clstr_out.reprof -c 0.8 -p 1
 Use `clstr_out.reprof` as the repeat library of `genome.fa`.
 
 # License
+This software is released under the MIT License, see LICENSE.txt.
 
 # Changelogs
 2023/01/XX Vesion 1.0.0 relased. 
