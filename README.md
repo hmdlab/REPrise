@@ -60,5 +60,5 @@ Use `clstr_out.reprof` as the repeat library of `genome.fa`.
 This software is released under the MIT License, see LICENSE.txt.
 
 # Changelogs
-2023/01/23 Vesion 1.0.0 relased. 
+2024/01/23 Vesion 1.0.0 relased. 
 # Reference
