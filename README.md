@@ -62,3 +62,5 @@ This software is released under the MIT License, see LICENSE.txt.
 # Changelogs
 2024/01/23 Vesion 1.0.0 relased. 
 # Reference
+Atsushi Takeda†, Daisuke Nonaka†, Yuta Imazu, Tsukasa Fukunaga*, Michiaki Hamada*, REPrise: de novo interspersed repeat detection using inexact seeding, bioRxiv, https://doi.org/10.1101/2024.01.21.576581
+
