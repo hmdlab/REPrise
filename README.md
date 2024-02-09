@@ -45,6 +45,8 @@ Options
 `-dist` is a useful parameter for improving sensitivity, but it may increase the computation time significantly. Be careful when setting `-dist` to 2 or more!
 REPrise supports parallel computation with openMP, and we recommend using it if available.
 
+Note that entering a large number of contigs ( approximately 10000 or more) at the same time may cause memory errors. 
+
 # Usage
 We highly recommend running CD-HIT for the REPrise output, to polish the repeat library.
 You can install latest version of cd-hit from https://github.com/weizhongli/cdhit. 
