@@ -23,6 +23,7 @@ Options
 (Optional)
    -h                  Print help and exit
    -v                  Verbose
+   -additonalfile      Output files about masked region(.masked and .bed)
 
    -match INT          Match score of the extension alignment (default = 1)
    -match INT          Mismatch score of the extension alignment (default = -1)
@@ -62,7 +63,8 @@ Use `clstr_out.reprof` as the repeat library of `genome.fa`.
 This software is released under the MIT License, see LICENSE.txt.
 
 # Changelogs
-2024/01/23 Vesion 1.0.0 relased. 
+2024/01/23 Version 1.0.0 relased. 
+2024/03/12 Version 1.0.1 relased: add "-additonalfile" option.
 # Reference
 Atsushi Takeda†, Daisuke Nonaka†, Yuta Imazu, Tsukasa Fukunaga*, Michiaki Hamada*, REPrise: de novo interspersed repeat detection using inexact seeding, bioRxiv, https://doi.org/10.1101/2024.01.21.576581
 
