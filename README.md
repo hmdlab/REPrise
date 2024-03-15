@@ -59,6 +59,16 @@ cd-hit-est -i out.reprof -o clstr_out.reprof -c 0.8 -p 1
 ```
 Use `clstr_out.reprof` as the repeat library of `genome.fa`.
 
+## Testcase
+You can check the software execution by a test case.
+```
+REPrise -input test/tst.fa -output out -dist 1 -tandemdist 10
+```
+You will get `out.freq` and `out.reprof`. And out.reprof will look like:
+```
+>R=0, seedfreq=11, elementfreq=9, length=50, Seed=TCGTTATAGAAA
+AGAAATATCTGCACGTTCGTTATAGAAAGTAGCCCCGTCGGACAAGACTG
+```
 # License
 This software is released under the MIT License, see LICENSE.txt.
 
