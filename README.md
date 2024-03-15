@@ -64,7 +64,7 @@ You can check the software execution by a test case.
 ```
 REPrise -input test/tst.fa -output out -dist 1 -tandemdist 10
 ```
-You will get `out.freq` and `out.reprof`. And out.reprof will look like:
+You will get `out.freq` and `out.reprof`. And `out.reprof` will look like:
 ```
 >R=0, seedfreq=11, elementfreq=9, length=50, Seed=TCGTTATAGAAA
 AGAAATATCTGCACGTTCGTTATAGAAAGTAGCCCCGTCGGACAAGACTG
